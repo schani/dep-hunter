@@ -7,9 +7,9 @@ import chalk from 'chalk';
 import { discoverDependencies } from './dependency-discovery';
 import { countImports } from './import-parser';
 import { buildDependencyGraph } from './dependency-graph';
-import { calculateDependencySizes } from './size-calculator';
+import { defaultSizeCalculator } from './size-calculator';
 import { formatResults } from './formatter';
-import { AnalysisResult } from './types';
+import { AnalysisResult, ISizeCalculator } from './types';
 
 const program = new Command();
 
@@ -51,7 +51,8 @@ program
       const graph = buildDependencyGraph(resolvedPath, depsToAnalyze);
       
       console.log(chalk.gray('Calculating sizes...'));
-      const sizes = calculateDependencySizes(graph, depsToAnalyze);
+      const sizeCalculator: ISizeCalculator = defaultSizeCalculator;
+      const sizes = sizeCalculator.calculateDependencySizes(graph, depsToAnalyze);
       
       const results: AnalysisResult[] = [];
       

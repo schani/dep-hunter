@@ -36,3 +36,10 @@ export interface AnalysisResult {
   totalSize: number;
   exclusiveDeps: number;
 }
+
+export interface ISizeCalculator {
+  calculateDependencySizes(
+    graph: DependencyGraph,
+    directDeps: string[]
+  ): Map<string, DependencySize>;
+}
