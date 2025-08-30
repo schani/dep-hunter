@@ -1,0 +1,27 @@
+{
+  "name": "dep-hunter",
+  "version": "1.0.0",
+  "description": "CLI tool to analyze dependency usage in Node projects",
+  "main": "dist/index.js",
+  "bin": {
+    "dep-hunter": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["cli", "dependencies", "analysis"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "fast-glob": "^3.3.2",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2"
+  }
+}
