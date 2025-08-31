@@ -38,8 +38,5 @@ export interface AnalysisResult {
 }
 
 export interface ISizeCalculator {
-  calculateDependencySizes(
-    graph: DependencyGraph,
-    directDeps: string[]
-  ): Map<string, DependencySize> | Promise<Map<string, DependencySize>>;
+  getPackageSize(packagePath: string, name: string, version: string): number | Promise<number>;
 }

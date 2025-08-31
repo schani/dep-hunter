@@ -9,6 +9,7 @@ import { countImports } from './import-parser';
 import { buildDependencyGraph } from './dependency-graph';
 import { defaultSizeCalculator } from './size-calculator';
 import { bundlephobiaSizeCalculator } from './bundlephobia-size-calculator';
+import { calculateDependencySizes } from './dependency-analyzer';
 import { formatResults } from './formatter';
 import { AnalysisResult, ISizeCalculator } from './types';
 
@@ -56,7 +57,12 @@ program
       const sizeCalculator: ISizeCalculator = options.bundlephobia 
         ? bundlephobiaSizeCalculator 
         : defaultSizeCalculator;
-      const sizes = await sizeCalculator.calculateDependencySizes(graph, depsToAnalyze);
+      
+      if (options.bundlephobia) {
+        console.log(chalk.gray('Using bundlephobia API (this may take a while)...'));
+      }
+      
+      const sizes = await calculateDependencySizes(graph, depsToAnalyze, sizeCalculator);
       
       const results: AnalysisResult[] = [];
       

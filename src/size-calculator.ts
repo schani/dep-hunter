@@ -1,44 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { DependencyGraph, DependencySize, ISizeCalculator } from './types';
-import { getExclusiveDependencies } from './dependency-graph';
+import { ISizeCalculator } from './types';
 
-export class SizeCalculator implements ISizeCalculator {
-  calculateDependencySizes(
-    graph: DependencyGraph,
-    directDeps: string[]
-  ): Map<string, DependencySize> {
-    const sizes = new Map<string, DependencySize>();
-    
-    for (const [name, node] of graph.nodes) {
-      node.size = this.getDirectorySize(node.path);
-    }
-    
-    for (const dep of directDeps) {
-      const node = graph.nodes.get(dep);
-      if (!node) continue;
-      
-      const exclusiveDeps = getExclusiveDependencies(dep, graph, directDeps);
-      let exclusiveSize = 0;
-      const exclusiveDepsList: string[] = [];
-      
-      for (const exclusiveDep of exclusiveDeps) {
-        const exclusiveNode = graph.nodes.get(exclusiveDep);
-        if (exclusiveNode) {
-          exclusiveSize += exclusiveNode.size;
-          exclusiveDepsList.push(exclusiveDep);
-        }
-      }
-      
-      sizes.set(dep, {
-        direct: node.size,
-        exclusive: exclusiveSize,
-        total: node.size + exclusiveSize,
-        exclusiveDeps: exclusiveDepsList,
-      });
-    }
-    
-    return sizes;
+export class FilesystemSizeCalculator implements ISizeCalculator {
+  getPackageSize(packagePath: string, name: string, version: string): number {
+    return this.getDirectorySize(packagePath);
   }
 
   private getDirectorySize(dirPath: string): number {
@@ -68,10 +34,9 @@ export class SizeCalculator implements ISizeCalculator {
     
     return totalSize;
   }
-
 }
 
-export const defaultSizeCalculator = new SizeCalculator();
+export const defaultSizeCalculator = new FilesystemSizeCalculator();
 
 export function formatSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB'];
