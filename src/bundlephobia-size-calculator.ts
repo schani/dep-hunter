@@ -1,4 +1,5 @@
 import { ISizeCalculator } from './types';
+import { database, BundlephobiaData } from './database';
 
 interface BundlephobiaResponse {
   gzip: number;
@@ -6,22 +7,66 @@ interface BundlephobiaResponse {
   dependencyCount: number;
   name: string;
   version: string;
+  hasJSModule?: boolean;
+  hasJSNext?: boolean;
+  hasSideEffects?: boolean;
 }
 
 export class BundlephobiaSizeCalculator implements ISizeCalculator {
-  private cache = new Map<string, number>();
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
+  private inFlightRequests = new Map<string, Promise<number>>();
   private requestQueue: Promise<void> = Promise.resolve();
   private lastRequestTime = 0;
   private minRequestInterval = 1000; // 1 second between requests
-
-  async getPackageSize(packagePath: string, name: string, version: string): Promise<number> {
-    const cacheKey = `${name}@${version}`;
+  
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
     
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+    if (!this.initPromise) {
+      this.initPromise = database.init().then(() => {
+        this.initialized = true;
+      });
     }
     
-    // Queue requests to respect rate limits
+    await this.initPromise;
+  }
+
+  async getPackageSize(packagePath: string, name: string, version: string): Promise<number> {
+    await this.ensureInitialized();
+    
+    const cacheKey = `${name}@${version}`;
+    
+    // Check if we already have an in-flight request for this package
+    if (this.inFlightRequests.has(cacheKey)) {
+      return this.inFlightRequests.get(cacheKey)!;
+    }
+    
+    // Create the promise for this request
+    const sizePromise = this.fetchOrGetCached(name, version);
+    
+    // Store it as an in-flight request
+    this.inFlightRequests.set(cacheKey, sizePromise);
+    
+    try {
+      const size = await sizePromise;
+      return size;
+    } finally {
+      // Remove from in-flight requests when done
+      this.inFlightRequests.delete(cacheKey);
+    }
+  }
+  
+  private async fetchOrGetCached(name: string, version: string): Promise<number> {
+    // Check database cache first
+    const cached = await database.getBundlephobiaData(name, version);
+    
+    if (cached) {
+      // Use cached data
+      return cached.gzip || cached.size || 0;
+    }
+    
+    // Not in cache, need to fetch from API
     return this.queueRequest(async () => {
       try {
         const url = `https://bundlephobia.com/api/size?package=${encodeURIComponent(name)}@${encodeURIComponent(version)}&record=true`;
@@ -40,11 +85,24 @@ export class BundlephobiaSizeCalculator implements ISizeCalculator {
         
         const data = await response.json() as BundlephobiaResponse;
         
-        // Use gzip size as it's more realistic for network transfer
-        const size = data.gzip || data.size || 0;
-        this.cache.set(cacheKey, size);
+        // Save full response to database
+        const bundlephobiaData: BundlephobiaData = {
+          name: data.name || name,
+          version: data.version || version,
+          gzip: data.gzip || 0,
+          size: data.size || 0,
+          dependencyCount: data.dependencyCount || 0,
+          hasJSModule: data.hasJSModule || false,
+          hasJSNext: data.hasJSNext || false,
+          hasSideEffects: data.hasSideEffects !== false, // Default to true if not specified
+          response: JSON.stringify(data),
+          fetchedAt: Date.now(),
+        };
         
-        return size;
+        await database.saveBundlephobiaData(bundlephobiaData);
+        
+        // Return gzip size as it's more realistic for network transfer
+        return data.gzip || data.size || 0;
       } catch (error) {
         console.warn(`Error fetching size for ${name}@${version}:`, error);
         return 0;
