@@ -8,6 +8,7 @@ import { discoverDependencies } from './dependency-discovery';
 import { countImports } from './import-parser';
 import { buildDependencyGraph } from './dependency-graph';
 import { defaultSizeCalculator } from './size-calculator';
+import { bundlephobiaSizeCalculator } from './bundlephobia-size-calculator';
 import { formatResults } from './formatter';
 import { AnalysisResult, ISizeCalculator } from './types';
 
@@ -20,7 +21,8 @@ program
   .argument('<path>', 'Path to the Node.js project to analyze')
   .option('--include-dev', 'Include devDependencies in the analysis')
   .option('--json', 'Output results as JSON')
-  .action(async (targetPath: string, options: { includeDev?: boolean; json?: boolean }) => {
+  .option('--bundlephobia', 'Use bundlephobia API for size calculation (slower but more accurate)')
+  .action(async (targetPath: string, options: { includeDev?: boolean; json?: boolean; bundlephobia?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
       
@@ -51,8 +53,10 @@ program
       const graph = buildDependencyGraph(resolvedPath, depsToAnalyze);
       
       console.log(chalk.gray('Calculating sizes...'));
-      const sizeCalculator: ISizeCalculator = defaultSizeCalculator;
-      const sizes = sizeCalculator.calculateDependencySizes(graph, depsToAnalyze);
+      const sizeCalculator: ISizeCalculator = options.bundlephobia 
+        ? bundlephobiaSizeCalculator 
+        : defaultSizeCalculator;
+      const sizes = await sizeCalculator.calculateDependencySizes(graph, depsToAnalyze);
       
       const results: AnalysisResult[] = [];
       

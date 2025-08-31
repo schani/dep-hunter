@@ -41,5 +41,5 @@ export interface ISizeCalculator {
   calculateDependencySizes(
     graph: DependencyGraph,
     directDeps: string[]
-  ): Map<string, DependencySize>;
+  ): Map<string, DependencySize> | Promise<Map<string, DependencySize>>;
 }
