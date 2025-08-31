@@ -1,15 +1,13 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import glob from 'fast-glob';
-import { ImportCount } from './types';
+import { ImportCount, IImportParser } from './types';
+import { RegexImportParser } from './regex-import-parser';
 
-const IMPORT_PATTERNS = [
-  /import\s+(?:[\w{},\s*]+\s+from\s+)?['"]([^'"]+)['"]/g,
-  /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-  /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-];
-
-export async function countImports(projectPath: string, dependencies: string[]): Promise<ImportCount> {
+export async function countImports(
+  projectPath: string, 
+  dependencies: string[],
+  parser: IImportParser = new RegexImportParser()
+): Promise<ImportCount> {
   const sourcePatterns = ['**/*.{js,jsx,ts,tsx}'];
   const ignorePatterns = ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'];
   
@@ -25,18 +23,13 @@ export async function countImports(projectPath: string, dependencies: string[]):
   for (const file of files) {
     try {
       const content = fs.readFileSync(file, 'utf-8');
+      const imports = parser.parseImports(content);
       
-      for (const pattern of IMPORT_PATTERNS) {
-        let match;
-        pattern.lastIndex = 0;
+      for (const importPath of imports) {
+        const dependency = parser.extractDependencyName(importPath);
         
-        while ((match = pattern.exec(content)) !== null) {
-          const importPath = match[1];
-          const dependency = extractDependencyName(importPath);
-          
-          if (dependency && importCount.hasOwnProperty(dependency)) {
-            importCount[dependency]++;
-          }
+        if (dependency && importCount.hasOwnProperty(dependency)) {
+          importCount[dependency]++;
         }
       }
     } catch (error) {
@@ -45,17 +38,4 @@ export async function countImports(projectPath: string, dependencies: string[]):
   }
   
   return importCount;
-}
-
-function extractDependencyName(importPath: string): string | null {
-  if (importPath.startsWith('.') || importPath.startsWith('/')) {
-    return null;
-  }
-  
-  if (importPath.startsWith('@')) {
-    const parts = importPath.split('/');
-    return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : null;
-  }
-  
-  return importPath.split('/')[0];
 }

@@ -40,3 +40,8 @@ export interface AnalysisResult {
 export interface ISizeCalculator {
   getPackageSize(packagePath: string, name: string, version: string): number | Promise<number>;
 }
+
+export interface IImportParser {
+  parseImports(content: string): string[];
+  extractDependencyName(importPath: string): string | null;
+}
